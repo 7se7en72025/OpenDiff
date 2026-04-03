@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenDiff - Team PR Review</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #0071e3;
+            --secondary: #f50;
+            --bg: #fbfbfb;
+            --text: #1d1d1d;
+            --text-secondary: #86868b;
+            --border: #e5e5e7;
+            --success: #30b0c0;
+            --danger: #ff453a;
+            --warning: #ff9500;
+        }
+
+        html, body {
+            height: 100%;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+        }
+
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+
+        /* Header */
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 48px;
+            background: rgba(251, 251, 251, 0.8);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+            z-index: 100;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 600;
+            font-size: 16px;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .badge {
+            background: var(--primary);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .badge-success {
+            background: var(--success);
+        }
+
+        .badge-warning {
+            background: var(--warning);
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 280px;
+            background: white;
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            margin-top: 48px;
+            overflow-y: auto;
+        }
+
+        .sidebar-section {
+            padding: 16px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .sidebar-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+        }
+
+        .filter-btn {
+            width: 100%;
+            padding: 10px 12px;
+            margin: 6px 0;
+            background: transparent;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .filter-btn:hover {
+            background: var(--bg);
+        }
+
+        .filter-btn.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 14px;
+            margin-top: 8px;
+        }
+
+        .sort-select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 14px;
+            margin-top: 8px;
+            background: white;
+        }
+
+        /* PR List */
+        .pr-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px;
+        }
+
+        .pr-card {
+            padding: 12px;
+            margin: 6px 0;
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .pr-card:hover {
+            border-color: var(--primary);
+            background: var(--bg);
+        }
+
+        .pr-card.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        .pr-number {
+            font-weight: 600;
+            color: var(--primary);
+        }
+
+        .pr-card.active .pr-number {
+            color: white;
+        }
+
+        .pr-title {
+            font-size: 13px;
+            margin-top: 4px;
+            line-height: 1.4;
+        }
+
+        .pr-meta {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+
+        .pr-card.active .pr-meta {
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        /* Main content */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            margin-top: 48px;
+        }
+
+        .detail-panel {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px;
+        }
+
+        .detail-empty {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: var(--text-secondary);
+            font-size: 16px;
+        }
+
+        .pr-detail {
+            animation: slideIn 0.2s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .pr-detail-header {
+            margin-bottom: 24px;
+        }
+
+        .pr-detail-title {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .pr-detail-meta {
+            display: flex;
+            gap: 16px;
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+        }
+
+        .pr-stats {
+            display: flex;
+            gap: 16px;
+            margin-top: 12px;
+            font-size: 13px;
+        }
+
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .stat-additions {
+            color: var(--success);
+        }
+
+        .stat-deletions {
+            color: var(--danger);
+        }
+
+        .buttons {
+            display: flex;
+            gap: 12px;
+            margin-top: 16px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 10px 16px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            opacity: 0.9;
+            transform: scale(1.02);
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: white;
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+
+        .btn-secondary:hover {
+            background: var(--bg);
+        }
+
+        .section {
+            margin-bottom: 32px;
+        }
+
+        .section-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+        }
+
+        .review-status {
+            background: var(--bg);
+            padding: 12px;
+            border-radius: 12px;
+            border-left: 3px solid var(--primary);
+        }
+
+        .review-item {
+            padding: 12px;
+            background: white;
+            margin: 8px 0;
+            border-radius: 8px;
+            border-left: 3px solid var(--border);
+        }
+
+        .review-approved {
+            border-left-color: var(--success);
+        }
+
+        .review-changes {
+            border-left-color: var(--danger);
+        }
+
+        .comment-section {
+            margin-top: 12px;
+        }
+
+        .comment {
+            background: var(--bg);
+            padding: 12px;
+            margin: 8px 0;
+            border-radius: 8px;
+            border-left: 3px solid var(--primary);
+        }
+
+        .comment-author {
+            font-weight: 600;
+            font-size: 12px;
+            color: var(--primary);
+            margin-bottom: 4px;
+        }
+
+        .comment-text {
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            max-width: 400px;
+            width: 90%;
+        }
+
+        .modal-title {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 16px;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 6px;
+            color: var(--text);
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .status-tag {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+
+        .status-open {
+            background: #a8d8ea;
+            color: #0d47a1;
+        }
+
+        .status-closed {
+            background: #ffccbc;
+            color: #d84315;
+        }
+
+        .status-merged {
+            background: #d1c4e9;
+            color: #512da8;
+        }
+
+        .scroll-smooth::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .scroll-smooth::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .scroll-smooth::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 4px;
+        }
+
+        .scroll-smooth::-webkit-scrollbar-thumb:hover {
+            background: var(--text-secondary);
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+            }
+
+            .sidebar {
+                width: 100%;
+                max-height: 200px;
+            }
+
+            .pr-detail-title {
+                font-size: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-left">🔀 OpenDiff</div>
+        <div class="header-right">
+            <span id="user-badge" class="badge">Loading...</span>
+            <span id="sync-badge" class="badge badge-success">✓ Synced</span>
+            <button id="logout-btn" class="btn btn-secondary" style="padding: 6px 12px;">Logout</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="sidebar scroll-smooth">
+            <div class="sidebar-section">
+                <div class="sidebar-title">Filters</div>
+                <button class="filter-btn active" data-filter="open">🟢 Open</button>
+                <button class="filter-btn" data-filter="closed">🔴 Closed</button>
+                <button class="filter-btn" data-filter="merged">🟣 Merged</button>
+                <button class="filter-btn" data-filter="approved">✅ Approved</button>
+                <button class="filter-btn" data-filter="pending">⏳ Pending</button>
+            </div>
+
+            <div class="sidebar-section">
+                <div class="sidebar-title">Sort</div>
+                <select class="sort-select" id="sort-select">
+                    <option value="latest">Latest</option>
+                    <option value="oldest">Oldest</option>
+                    <option value="most-changes">Most Changes</option>
+                    <option value="least-changes">Least Changes</option>
+                    <option value="most-additions">Most +Lines</option>
+                    <option value="most-deletions">Most -Lines</option>
+                </select>
+            </div>
+
+            <div class="sidebar-section">
+                <input type="text" class="search-input" id="search-input" placeholder="Search PR titles...">
+            </div>
+
+            <div class="pr-list scroll-smooth" id="pr-list">
+                <div style="padding: 16px; text-align: center; color: var(--text-secondary);">
+                    Loading PRs...
+                </div>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="detail-panel scroll-smooth" id="detail-panel">
+                <div class="detail-empty">Select a PR to view details</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="login-modal">
+        <div class="modal-content">
+            <div class="modal-title">🔀 OpenDiff</div>
+            <div style="margin-bottom: 20px; color: var(--text-secondary); font-size: 14px;">
+                Team PR Review Tool
+            </div>
+            <form id="login-form">
+                <div class="form-group">
+                    <label class="form-label">GitHub ID</label>
+                    <input type="text" class="form-input" id="github-id" placeholder="e.g., john_doe" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Your Name</label>
+                    <input type="text" class="form-input" id="user-name" placeholder="e.g., John Doe" required>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%; padding: 12px;">Login</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = `${window.location.origin}/api`;
+        const WS_URL = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws`;
+        
+        let state = {
+            loggedIn: false,
+            user: null,
+            prs: [],
+            reviews: {},
+            selectedPr: null,
+            filter: 'open',
+            sort: 'latest',
+            search: '',
+            ws: null,
+        };
+
+        // Initialize
+        async function init() {
+            const user = localStorage.getItem('user');
+            if (user) {
+                state.user = JSON.parse(user);
+                state.loggedIn = true;
+                showApp();
+                loadPRs();
+                connectWebSocket();
+                setupEventListeners();
+            } else {
+                showLoginModal();
+            }
+        }
+
+        function showLoginModal() {
+            document.getElementById('login-modal').classList.add('active');
+        }
+
+        function showApp() {
+            document.getElementById('login-modal').classList.remove('active');
+        }
+
+        async function login(githubId, name) {
+            try {
+                const response = await fetch(`${API_URL}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ github_id: githubId, name })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    state.user = data.data;
+                    state.loggedIn = true;
+                    localStorage.setItem('user', JSON.stringify(state.user));
+                    showApp();
+                    loadPRs();
+                    connectWebSocket();
+                    setupEventListeners();
+                }
+            } catch (e) {
+                alert('Login failed: ' + e.message);
+            }
+        }
+
+        async function loadPRs() {
+            try {
+                const response = await fetch(`${API_URL}/prs`);
+                const data = await response.json();
+                if (data.success) {
+                    state.prs = data.data.pull_requests || [];
+                    render();
+                }
+            } catch (e) {
+                console.error('Failed to load PRs:', e);
+            }
+        }
+
+        function connectWebSocket() {
+            state.ws = new WebSocket(WS_URL);
+            state.ws.onopen = () => {
+                console.log('✅ Connected to real-time sync');
+                state.ws.send(JSON.stringify({ type: 'user-join', user: state.user }));
+            };
+            state.ws.onmessage = (event) => {
+                console.log('📨 Real-time update:', event.data);
+                loadPRs();
+            };
+        }
+
+        function setupEventListeners() {
+            // Filter buttons
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                    e.target.classList.add('active');
+                    state.filter = e.target.dataset.filter;
+                    render();
+                });
+            });
+
+            // Sort select
+            document.getElementById('sort-select').addEventListener('change', (e) => {
+                state.sort = e.target.value;
+                render();
+            });
+
+            // Search input
+            document.getElementById('search-input').addEventListener('input', (e) => {
+                state.search = e.target.value;
+                render();
+            });
+
+            // Logout button
+            document.getElementById('logout-btn').addEventListener('click', () => {
+                localStorage.removeItem('user');
+                state.loggedIn = false;
+                state.user = null;
+                if (state.ws) state.ws.close();
+                showLoginModal();
+            });
+
+            // Login form
+            document.getElementById('login-form').addEventListener('submit', (e) => {
+                e.preventDefault();
+                const githubId = document.getElementById('github-id').value;
+                const name = document.getElementById('user-name').value;
+                login(githubId, name);
+            });
+        }
+
+        function getFilteredAndSortedPRs() {
+            let filtered = state.prs.filter(pr => {
+                if (state.filter === 'open' && pr.status !== 'open') return false;
+                if (state.filter === 'closed' && pr.status !== 'closed') return false;
+                if (state.filter === 'merged' && pr.status !== 'merged') return false;
+                if (state.search && !pr.title.toLowerCase().includes(state.search.toLowerCase())) return false;
+                return true;
+            });
+
+            filtered.sort((a, b) => {
+                if (state.sort === 'latest') return new Date(b.created_at) - new Date(a.created_at);
+                if (state.sort === 'oldest') return new Date(a.created_at) - new Date(b.created_at);
+                if (state.sort === 'most-changes') return (b.changed_files || 0) - (a.changed_files || 0);
+                if (state.sort === 'least-changes') return (a.changed_files || 0) - (b.changed_files || 0);
+                if (state.sort === 'most-additions') return (b.additions || 0) - (a.additions || 0);
+                if (state.sort === 'most-deletions') return (b.deletions || 0) - (a.deletions || 0);
+                return 0;
+            });
+
+            return filtered;
+        }
+
+        function render() {
+            const filtered = getFilteredAndSortedPRs();
+            const prList = document.getElementById('pr-list');
+            
+            // Update badge
+            document.getElementById('user-badge').textContent = `👤 ${state.user?.name}`;
+
+            // Render PR list
+            prList.innerHTML = filtered.map(pr => `
+                <div class="pr-card ${state.selectedPr?.number === pr.number ? 'active' : ''}" 
+                     onclick="selectPR(${JSON.stringify(pr).replace(/"/g, '&quot;')})">
+                    <div><span class="pr-number">#${pr.number}</span> ${pr.title}</div>
+                    <div class="pr-meta">
+                        <span>${pr.author}</span>
+                        <span class="status-tag status-${pr.status}">${pr.status}</span>
+                        <span>📝 ${pr.changed_files} | ➕ ${pr.additions} | ➖ ${pr.deletions}</span>
+                    </div>
+                </div>
+            `).join('');
+
+            // Render detail panel
+            renderDetail();
+        }
+
+        function selectPR(pr) {
+            state.selectedPr = pr;
+            render();
+        }
+
+        function renderDetail() {
+            const panel = document.getElementById('detail-panel');
+            
+            if (!state.selectedPr) {
+                panel.innerHTML = '<div class="detail-empty">Select a PR to view details</div>';
+                return;
+            }
+
+            const pr = state.selectedPr;
+            panel.innerHTML = `
+                <div class="pr-detail">
+                    <div class="pr-detail-header">
+                        <div class="pr-detail-title">#${pr.number} ${pr.title}</div>
+                        <div class="pr-detail-meta">
+                            <span>by <strong>${pr.author}</strong></span>
+                            <span>${new Date(pr.created_at).toLocaleDateString()}</span>
+                            <span class="status-tag status-${pr.status}">${pr.status.toUpperCase()}</span>
+                        </div>
+                        <div class="pr-stats">
+                            <div class="stat-item"><span>📝</span> ${pr.changed_files} files</div>
+                            <div class="stat-item stat-additions"><span>➕</span> ${pr.additions} additions</div>
+                            <div class="stat-item stat-deletions"><span>➖</span> ${pr.deletions} deletions</div>
+                        </div>
+                    </div>
+
+                    <div class="buttons">
+                        <button class="btn btn-success" onclick="approve(${pr.number})">✅ Approve</button>
+                        <button class="btn btn-danger" onclick="requestChanges(${pr.number})">❌ Request Changes</button>
+                        <a href="${pr.url}" target="_blank">
+                            <button class="btn btn-secondary">↗ Open on GitHub</button>
+                        </a>
+                    </div>
+
+                    <div class="section">
+                        <div class="section-title">Comments</div>
+                        <div id="comments-${pr.number}"></div>
+                        <div class="comment-section">
+                            <textarea id="comment-${pr.number}" placeholder="Add a comment..."></textarea>
+                            <button class="btn btn-primary" style="margin-top: 8px; padding: 10px 16px;" 
+                                    onclick="addComment(${pr.number})">Add Comment</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        async function approve(prNumber) {
+            await submitReview(prNumber, 'APPROVED');
+        }
+
+        async function requestChanges(prNumber) {
+            await submitReview(prNumber, 'CHANGES_REQUESTED');
+        }
+
+        async function submitReview(prNumber, status) {
+            try {
+                const response = await fetch(`${API_URL}/reviews`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ pr_number: prNumber, status })
+                });
+
+                if (response.ok) {
+                    alert(`✅ Review submitted: ${status}`);
+                    loadPRs();
+                    if (state.ws) {
+                        state.ws.send(JSON.stringify({ type: 'review-update', prNumber, status }));
+                    }
+                }
+            } catch (e) {
+                alert('Failed to submit review: ' + e.message);
+            }
+        }
+
+        function addComment(prNumber) {
+            const textarea = document.getElementById(`comment-${prNumber}`);
+            const text = textarea.value;
+            if (text.trim()) {
+                console.log(`Adding comment to PR #${prNumber}:`, text);
+                textarea.value = '';
+                alert('Comment added!');
+            }
+        }
+
+        // Start app
+        init();
+    </script>
+</body>
+</html>

@@ -1,53 +1,101 @@
-# PR Reviewer
+# 🔀 OpenDiff - Team PR Review Tool
 
-Browse, search, and review GitHub pull requests with built-in review tracking.
+A **production-ready** PR review tool built with **Rust + Actix-web** backend and **Apple/Uber-style** modern frontend. Deploy in minutes, sync across 10+ team members in real-time.
 
-**Live demo**: [Deploy to GitHub Pages + Render](./INFINITE.md) for infinite cached requests!
+## ✨ Features
 
----
+- ✅ **Real-time Sync** - WebSocket-powered live updates across all devices
+- 🚀 **Ultra-Fast** - Rust backend with zero-copy performance
+- 📱 **Apple Design** - Glassmorphic UI with smooth animations
+- 🔄 **Team Collaboration** - Multiple reviewers, exclusive PR assignment
+- 💾 **MongoDB** - Cloud-ready database with instant backup
+- 📊 **PR Analytics** - Track changes, approvals, and team velocity
+- 🌐 **Fully Deployable** - Docker + Railway/Render ready
+- ⚡ **No Build Tools** - Frontend is pure HTML/JS
 
-## Features
+## 🚀 Quick Start
 
-✅ **Infinite Requests** — Deploy backend + caching for unlimited API calls
-✅ **Review Tracking** — Check/uncheck PRs you're reviewing (max 10 per browser)
-✅ **Search & Filter** — Find PRs by title or number  
-✅ **View Details** — See diffs, comments, reviews in a clean UI
-✅ **Run PR** — Open in StackBlitz, CodeSandbox, Gitpod, or GitHub Web Editor
-✅ **Pure Frontend** — Works directly with GitHub API (no backend needed)
-✅ **Shared Cache** — Deploy backend for 100x faster loads across users
-✅ **Private Repos** — Add a GitHub token to access private repositories
+### Prerequisites
+- **Rust** 1.70+ → [Install](https://rustup.rs/)
+- **Docker** (optional, for containerization)
+- **MongoDB Atlas** (free cloud DB)
 
----
+### 1️⃣ Setup Backend (Rust)
 
-## Quick Start (Local)
-
-Just open `index.html` in a browser. 
-
-For best results, run a local server:
 ```bash
-npx serve .
+# Navigate to project
+cd "pr reivew"
+
+# Edit backend/.env with your MongoDB connection
+# MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/opendiff
+
+# Install Rust (if not installed)
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+
+# Build backend
+cd backend
+cargo build --release
+
+# Run backend
+cargo run --release
+# ✅ Server running on http://localhost:5000
 ```
 
-Then open `http://localhost:3000`.
+### 2️⃣ Open Frontend
+
+Frontend lives at: `http://localhost:5000`
+
+### 3️⃣ Get MongoDB Atlas (Free)
+
+1. Go to [mongodb.com/cloud/atlas](https://mongodb.com/cloud/atlas)
+2. Create account (free tier = 512MB)
+3. Create cluster
+4. Get connection string
+5. Add to `.env` file
+
+## 🐳 Docker Deployment (Recommended)
+
+```bash
+# Build and run with Docker Compose
+docker-compose up --build
+
+# ✅ App running on http://localhost:5000
+```
+
+## 🚀 Production Deployment
+
+### Render.com (Recommended)
+
+```bash
+# 1. Push to GitHub
+git push -u origin main
+
+# 2. Go to render.com → New → Web Service
+# 3. Connect GitHub repo
+# 4. Build: cargo build --release
+# 5. Start: ./target/release/opendiff-backend
+# 6. Add MONGODB_URI env var
+# 7. Deploy!
+```
+
+## 🔧 Technology Stack
+
+- **Backend**: Rust + Actix-web ⚡
+- **Database**: MongoDB 📊
+- **Frontend**: Vanilla JS + HTML 🚀
+- **Real-time**: WebSockets 🔄
+- **Deployment**: Docker 📦
+
+## 🔌 API Endpoints
+
+- `POST /api/auth/login` - Login
+- `GET /api/prs` - Get PRs
+- `POST /api/reviews` - Create review
+- `WS /ws` - Real-time sync
 
 ---
 
-## Deploy to GitHub Pages
-
-See [DEPLOY.md](./DEPLOY.md) for step-by-step instructions.
-
-TL;DR:
-1. Push to GitHub
-2. Enable Pages in Settings
-3. Done! Your app is live at `https://YOUR-USERNAME.github.io/pr-reviewer/`
-
----
-
-## How It Works
-
-1. **Paste a repo URL** — `https://github.com/owner/repo`
-2. **(Optional) Add GitHub token** — Higher rate limits (5,000/hr vs 60/hr)
-3. **Load PRs** — Fetches all open + closed PRs
+**Built with ❤️ for Team Collaboration** 🚀
 4. **Check to review** — Track up to 10 PRs per browser session
 5. **Click to view details** — See diffs, comments, deployments
 6. **Run anywhere** — StackBlitz, CodeSandbox, Gitpod, VS Code Web
