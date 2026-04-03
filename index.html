@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PR Reviewer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+:root {
+  --bg:        #f6f8fa;
+  --surface:   #ffffff;
+  --surface2:  #f6f8fa;
+  --surface3:  #eaeef2;
+  --border:    #d0d7de;
+  --border2:   #b7bfc8;
+  --text:      #1f2328;
+  --text2:     #656d76;
+  --text3:     #9198a1;
+  --accent:    #0969da;
+  --accent-bg: #ddf4ff;
+  --green:     #1a7f37;
+  --green-bg:  #dafbe1;
+  --green-bd:  #aceebb;
+  --red:       #cf222e;
+  --red-bg:    #ffebe9;
+  --red-bd:    #ffcecb;
+  --purple:    #8250df;
+  --purple-bg: #fbefff;
+  --purple-bd: #d8b4fe;
+  --blue:      #0969da;
+  --radius:    6px;
+  --radius-lg: 10px;
+  --mono: 'JetBrains Mono', 'SF Mono', ui-monospace, monospace;
+  --sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; font-family: var(--sans); font-size: 14px; line-height: 1.5; color: var(--text); background: var(--bg); }
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--border2); }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+code { font-family: var(--mono); font-size: 12px; background: var(--surface3); padding: 1px 5px; border-radius: 4px; }
+
+#app { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+.topbar {
+  height: 48px; flex-shrink: 0;
+  display: flex; align-items: center; gap: 12px; padding: 0 16px;
+  background: var(--surface); border-bottom: 1px solid var(--border);
+}
+.topbar-brand { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 14px; color: var(--text); text-decoration: none; }
+.topbar-brand svg { color: var(--accent); }
+.topbar-divider { width: 1px; height: 20px; background: var(--border); }
+.topbar-repo { font-family: var(--mono); font-size: 12px; color: var(--text2); }
+.topbar-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+
+.workspace { flex: 1; display: flex; overflow: hidden; }
+
+.sidebar {
+  width: 300px; flex-shrink: 0;
+  background: var(--surface); border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.sidebar-top { padding: 10px 12px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.filter-row { display: flex; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); padding: 2px; gap: 2px; margin-bottom: 8px; }
+.ftab { flex: 1; text-align: center; padding: 4px 0; font-size: 12px; font-weight: 500; color: var(--text2); border-radius: 4px; cursor: pointer; border: none; background: transparent; transition: all 0.12s; }
+.ftab:hover { color: var(--text); }
+.ftab.active { color: var(--text); background: var(--surface); box-shadow: 0 1px 2px rgba(0,0,0,0.08); border: 1px solid var(--border); }
+.ftab .n { opacity: 0.65; font-family: var(--mono); font-size: 10px; margin-left: 2px; }
+.search-box { position: relative; margin-bottom: 8px; }
+.search-box input { padding-left: 28px; font-size: 12px; width: 100%; }
+.search-icon { position: absolute; left: 9px; top: 50%; transform: translateY(-50%); color: var(--text3); pointer-events: none; }
+
+.review-status { font-size: 11px; color: var(--text2); padding: 6px 12px; background: var(--surface2); border-radius: var(--radius); margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+.review-status .circle { width: 8px; height: 8px; border-radius: 50%; background: var(--blue); }
+.review-status .circles { display: flex; gap: 3px; }
+.review-status .circle.full { background: var(--blue); }
+.review-status .circle.empty { background: var(--border); }
+
+.pr-list { flex: 1; overflow-y: auto; }
+.pr-row {
+  padding: 10px 12px; border-bottom: 1px solid var(--border);
+  cursor: pointer; transition: background 0.08s;
+  position: relative; display: flex; align-items: flex-start; gap: 8px;
+}
+.pr-row:hover { background: var(--surface2); }
+.pr-row.active { background: #e8f3ff; }
+.pr-row.active::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--accent); border-radius: 0 2px 2px 0; }
+.pr-row-checkbox { margin-top: 2px; flex-shrink: 0; cursor: pointer; }
+.pr-row-content { flex: 1; min-width: 0; }
+.pr-row-title { font-size: 12.5px; font-weight: 500; color: var(--text); line-height: 1.4; margin-bottom: 5px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.pr-row-meta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.pr-row-num { font-family: var(--mono); font-size: 11px; color: var(--text3); }
+.pr-row-time { font-size: 11px; color: var(--text3); }
+.badge { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 500; padding: 2px 7px; border-radius: 20px; border: 1px solid; }
+.badge.open   { color: var(--green);  background: var(--green-bg);  border-color: var(--green-bd); }
+.badge.merged { color: var(--purple); background: var(--purple-bg); border-color: var(--purple-bd); }
+.badge.closed { color: var(--text2);  background: var(--surface3);  border-color: var(--border); }
+
+.main-content { flex: 1; overflow-y: auto; background: var(--bg); }
+
+.home-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 40px 20px; }
+.home-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 32px;
+  width: 100%; max-width: 460px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.04);
+}
+.home-logo { display: flex; align-items: center; gap: 10px; margin-bottom: 24px; }
+.home-logo svg { color: var(--accent); }
+.home-logo h1 { font-size: 18px; font-weight: 600; letter-spacing: -0.3px; }
+.home-logo p { font-size: 12px; color: var(--text2); margin-top: 1px; }
+.field { margin-bottom: 16px; }
+.field label { display: block; font-size: 12px; font-weight: 600; color: var(--text); margin-bottom: 5px; }
+.field input { font-size: 13px; border: 1px solid var(--border); border-radius: var(--radius); padding: 6px 10px; color: var(--text); background: var(--surface); width: 100%; outline: none; }
+.field input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(9,105,218,0.08); }
+.field input::placeholder { color: var(--text3); }
+.field .hint { font-size: 11px; color: var(--text3); margin-top: 4px; }
+.error-banner { background: var(--red-bg); border: 1px solid var(--red-bd); color: var(--red); border-radius: var(--radius); padding: 10px 12px; font-size: 13px; margin-bottom: 16px; }
+.btn { display: inline-flex; align-items: center; gap: 5px; font-family: var(--sans); font-size: 13px; font-weight: 500; border-radius: var(--radius); padding: 8px 14px; border: 1px solid var(--border); background: var(--surface); color: var(--text); cursor: pointer; transition: all 0.12s; }
+.btn:hover { background: var(--surface2); border-color: var(--border2); }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: white; }
+.btn.primary:hover { background: #0860c8; }
+.btn-row { display: flex; gap: 8px; margin-top: 20px; }
+
+.pr-detail { display: flex; flex-direction: column; height: 100%; }
+.pr-hdr { padding: 16px 20px; background: var(--surface); border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.pr-hdr-top { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 8px; }
+.pr-hdr-title { font-size: 17px; font-weight: 600; letter-spacing: -0.3px; line-height: 1.35; flex: 1; }
+.pr-hdr-num { color: var(--text3); font-weight: 400; }
+.pr-meta-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
+.pr-meta-item { font-size: 12px; color: var(--text2); }
+.pr-meta-item img { width: 16px; height: 16px; border-radius: 50%; margin-right: 4px; }
+.branch-pill { font-family: var(--mono); font-size: 11px; background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; padding: 2px 7px; color: var(--text); }
+.pr-stats { display: flex; gap: 8px; flex-wrap: wrap; }
+.stat-chip { font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 20px; border: 1px solid; }
+
+.tabs-bar { display: flex; border-bottom: 1px solid var(--border); background: var(--surface); padding: 0 20px; flex-shrink: 0; }
+.tab { padding: 9px 12px; font-size: 12px; font-weight: 500; color: var(--text2); cursor: pointer; border: none; background: transparent; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all 0.12s; }
+.tab:hover { color: var(--text); }
+.tab.active { color: var(--text); border-bottom-color: var(--accent); }
+
+.tab-pane { padding: 20px; overflow-y: auto; flex: 1; }
+
+.review-box { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 16px; margin-bottom: 16px; }
+.review-checkbox { display: flex; align-items: center; gap: 10px; }
+.review-checkbox input { width: 18px; height: 18px; cursor: pointer; }
+.review-checkbox label { flex: 1; cursor: pointer; margin: 0; }
+.review-count { font-size: 12px; color: var(--text2); margin-top: 8px; }
+.review-count.warning { color: var(--red); font-weight: 500; }
+
+.section-hd { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text3); margin-bottom: 10px; }
+.launchers { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.launcher { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 12px; cursor: pointer; text-align: center; transition: all 0.12s; }
+.launcher:hover { border-color: var(--accent); background: #f0f6ff; }
+.launcher-icon { font-size: 24px; margin-bottom: 6px; }
+.launcher-name { font-size: 12px; font-weight: 600; }
+.launcher-desc { font-size: 10px; color: var(--text2); margin-top: 3px; }
+
+.comment-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); margin-bottom: 12px; overflow: hidden; }
+.comment-head { display: flex; align-items: center; gap: 8px; padding: 9px 14px; background: var(--surface2); border-bottom: 1px solid var(--border); }
+.comment-head img { width: 22px; height: 22px; border-radius: 50%; }
+.comment-head .user { font-size: 12px; font-weight: 600; }
+.comment-head .time { font-size: 11px; color: var(--text3); margin-left: auto; }
+.comment-body { padding: 12px 14px; font-size: 13px; line-height: 1.6; white-space: pre-wrap; word-break: break-word; }
+
+.welcome { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; gap: 10px; color: var(--text2); }
+.welcome-icon { font-size: 40px; opacity: 0.3; }
+.welcome h3 { font-size: 15px; font-weight: 600; color: var(--text); }
+.welcome p { font-size: 13px; max-width: 280px; text-align: center; }
+
+.spinner { width: 22px; height: 22px; border: 2px solid var(--surface3); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; margin: 40px auto; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.empty { padding: 32px 16px; text-align: center; color: var(--text3); font-size: 13px; }
+
+@media (max-width: 700px) {
+  .workspace { flex-direction: column; }
+  .sidebar { width: 100%; height: 200px; border-right: none; border-bottom: 1px solid var(--border); }
+  .launchers { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+const S = {
+  page: 'home',
+  owner: '',
+  repo: '',
+  repoUrl: localStorage.getItem('pr_repoUrl') || '',
+  token: localStorage.getItem('pr_token') || '',
+  recentRepos: JSON.parse(localStorage.getItem('pr_recent') || '[]'),
+  userId: localStorage.getItem('pr_userId') || generateUserId(),
+
+  prs: [],
+  loading: false,
+  error: '',
+  filter: 'all',
+  search: '',
+
+  selected: null,
+  prTab: 'overview',
+  prData: null,
+  prLoading: false,
+  reviewing: JSON.parse(localStorage.getItem('pr_reviewing') || '[]'),
+  
+  cacheStats: { hits: 0, misses: 0 },
+  useLocalCache: true,
+  cacheExpiry: 3600000, // 1 hour
+};
+
+function generateUserId() {
+  const id = Math.random().toString(36).substr(2, 9);
+  localStorage.setItem('pr_userId', id);
+  return id;
+}
+
+// LocalStorage cache key
+function cacheKey(path) {
+  return 'gh_cache:' + path;
+}
+
+// Get from cache
+function getFromCache(path) {
+  if (!S.useLocalCache) return null;
+  try {
+    const item = JSON.parse(localStorage.getItem(cacheKey(path)));
+    if (item && Date.now() - item.time < S.cacheExpiry) {
+      S.cacheStats.hits++;
+      return item.data;
+    }
+    localStorage.removeItem(cacheKey(path));
+  } catch (e) {}
+  return null;
+}
+
+// Save to cache
+function saveToCache(path, data) {
+  if (!S.useLocalCache) return;
+  try {
+    localStorage.setItem(cacheKey(path), JSON.stringify({ data, time: Date.now() }));
+  } catch (e) {
+    console.warn('Cache storage full, clearing old entries...');
+    // Clear old entries if storage is full
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key?.startsWith('gh_cache:')) localStorage.removeItem(key);
+    }
+  }
+}
+
+// Main API call with caching
+async function ghApi(path) {
+  // Check cache first
+  const cached = getFromCache(path);
+  if (cached) return cached;
+
+  S.cacheStats.misses++;
+  
+  // Fetch from GitHub
+  const headers = { 'Accept': 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' };
+  if (S.token) headers['Authorization'] = 'Bearer ' + S.token;
+  const r = await fetch('https://api.github.com' + path, { headers });
+  if (!r.ok) {
+    const d = await r.json().catch(() => ({}));
+    throw new Error(d.message || 'GitHub API error');
+  }
+  const data = await r.json();
+  
+  // Cache successful response
+  saveToCache(path, data);
+  return data;
+}
+
+// Clear all cache
+function clearCache() {
+  if (confirm('Clear all cached PR data?')) {
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const key = localStorage.key(i);
+      if (key?.startsWith('gh_cache:')) localStorage.removeItem(key);
+    }
+    S.cacheStats = { hits: 0, misses: 0 };
+    alert('Cache cleared!');
+  }
+}
+
+async function loadPRs() {
+  const match = S.repoUrl.match(/github\.com[\/:]([^\/]+)\/([^\/\s.]+)/);
+  if (!match) { S.error = 'Invalid GitHub URL'; render(); return; }
+  
+  S.owner = match[1]; 
+  S.repo = match[2];
+  S.loading = true; 
+  S.error = ''; 
+  S.prs = []; 
+  render();
+
+  try {
+    const fetchAll = async (state) => {
+      let all = [], page = 1;
+      while (true) {
+        const data = await ghApi(`/repos/${S.owner}/${S.repo}/pulls?state=${state}&per_page=100&page=${page}`);
+        if (!data.length) break;
+        all = all.concat(data);
+        page++;
+        await new Promise(r => setTimeout(r, 50));
+      }
+      return all;
+    };
+    const [open, closed] = await Promise.all([fetchAll('open'), fetchAll('closed')]);
+    S.prs = [...open, ...closed];
+    localStorage.setItem('pr_repoUrl', S.repoUrl);
+    const key = S.owner + '/' + S.repo;
+    S.recentRepos = [key, ...S.recentRepos.filter(r => r !== key)].slice(0, 6);
+    localStorage.setItem('pr_recent', JSON.stringify(S.recentRepos));
+    S.page = 'list';
+  } catch (e) {
+    S.error = e.message;
+  }
+  S.loading = false;
+  render();
+}
+
+function toggleReview(prNum) {
+  const idx = S.reviewing.indexOf(prNum);
+  if (idx >= 0) {
+    S.reviewing.splice(idx, 1);
+  } else {
+    if (S.reviewing.length >= 10) { alert('You can only review 10 PRs at a time. Complete one first.'); return; }
+    S.reviewing.push(prNum);
+  }
+  localStorage.setItem('pr_reviewing', JSON.stringify(S.reviewing));
+  render();
+}
+
+function isReviewing(prNum) {
+  return S.reviewing.includes(prNum);
+}
+
+function el(tag, attrs, ...kids) {
+  if (typeof attrs !== 'object' || Array.isArray(attrs)) { kids.unshift(attrs); attrs = {}; }
+  const node = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (v == null || v === false) continue;
+    if (k === 'on') { for (const [ev, fn] of Object.entries(v)) node.addEventListener(ev, fn); }
+    else if (k === 'cls') node.className = v;
+    else if (k === 'html') node.innerHTML = v;
+    else if (v === true) node.setAttribute(k, '');
+    else node.setAttribute(k, v);
+  }
+  for (const c of kids.flat(Infinity)) {
+    if (c != null) node.append(typeof c === 'string' || typeof c === 'number' ? String(c) : c);
+  }
+  return node;
+}
+
+function renderHome() {
+  return el('div', { cls: 'home-wrap' },
+    el('div', { cls: 'home-card' },
+      el('div', { cls: 'home-logo' },
+        el('svg', { width: '28', height: '28', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' },
+          el('circle', { cx: '18', cy: '18', r: '3' }),
+          el('circle', { cx: '6', cy: '6', r: '3' }),
+          el('path', { d: 'M6 21V9a9 9 0 0 0 9 9' })
+        ),
+        el('div', {}, el('h1', {}, 'PR Reviewer'), el('p', {}, 'Review GitHub pull requests'))
+      ),
+      S.error && el('div', { cls: 'error-banner' }, '⚠ ' + S.error),
+      el('div', { cls: 'field' }, 
+        el('label', {}, 'Repository URL'),
+        el('input', { placeholder: 'https://github.com/owner/repo', value: S.repoUrl, on: { input: e => S.repoUrl = e.target.value, keydown: e => e.key === 'Enter' && !S.loading && loadPRs() }})
+      ),
+      el('div', { cls: 'field' }, 
+        el('label', {}, 'GitHub Token (optional)'),
+        el('input', { type: 'password', placeholder: 'ghp_...', value: S.token, on: { input: e => { S.token = e.target.value; localStorage.setItem('pr_token', e.target.value); }}}),
+        el('div', { cls: 'hint' }, 'Get a token at github.com/settings/tokens (scope: public_repo) for 5,000 req/hr')
+      ),
+      el('div', { cls: 'review-box', style: { background: 'var(--accent-bg)', border: '1px solid var(--accent)' }},
+        el('div', { style: { fontSize: '12px', fontWeight: '600', marginBottom: '6px', color: 'var(--accent)' }}, '💾 Browser Cache (Infinite within session!)'),
+        el('div', { style: { fontSize: '11px', color: 'var(--text2)', marginBottom: '8px' }}, 
+          'Your data is cached locally. Revisit repos instantly with ', el('strong', {}, 'zero API calls'), '!'
+        ),
+        el('div', { style: { fontSize: '11px', color: 'var(--text2)', marginBottom: '10px' }},
+          '🎯 Cache hits: ', el('strong', {}, S.cacheStats.hits), ' | API calls: ', el('strong', {}, S.cacheStats.misses)
+        ),
+        el('button', { cls: 'btn', on: { click: clearCache }}, '🗑 Clear Cache')
+      ),
+      el('div', { cls: 'btn-row' },
+        el('button', { cls: 'btn primary', style: { flex: '1' }, disabled: S.loading, on: { click: loadPRs }}, S.loading ? '⏳ Loading...' : 'Load PRs →')
+      ),
+      S.recentRepos.length > 0 && el('div', { style: { marginTop: '20px', borderTop: '1px solid var(--border)', paddingTop: '16px' }},
+        el('div', { style: { fontSize: '12px', fontWeight: '500', marginBottom: '8px', color: 'var(--text)' }}, 'Recent'),
+        ...S.recentRepos.map(r => el('div', { style: { padding: '6px 0', cursor: 'pointer', fontSize: '12px', color: 'var(--accent)' }, on: { click: () => { S.repoUrl = 'https://github.com/' + r; render(); }}}, r))
+      )
+    )
+  );
+}
+
+function renderSidebar() {
+  const items = S.prs.filter(pr => {
+    if (S.filter === 'reviewing' && !isReviewing(pr.number)) return false;
+    if (S.search) {
+      const q = S.search.toLowerCase();
+      return pr.title.toLowerCase().includes(q) || String(pr.number).includes(q);
+    }
+    return true;
+  });
+
+  return el('div', { cls: 'sidebar' },
+    el('div', { cls: 'sidebar-top' },
+      el('div', { cls: 'review-status' },
+        el('span', { style: { fontWeight: '500' }}, 'Reviewing:'),
+        el('span', { style: { marginLeft: 'auto', fontFamily: 'var(--mono)', fontWeight: '600', color: 'var(--accent)' }}, S.reviewing.length + '/10')
+      ),
+      el('div', { cls: 'filter-row' },
+        el('button', { cls: 'ftab' + (S.filter === 'all' ? ' active' : ''), on: { click: () => { S.filter = 'all'; render(); }}}, 'All', el('span', { cls: 'n' }, S.prs.length)),
+        el('button', { cls: 'ftab' + (S.filter === 'reviewing' ? ' active' : ''), on: { click: () => { S.filter = 'reviewing'; render(); }}}, 'Reviewing', el('span', { cls: 'n' }, S.reviewing.length))
+      ),
+      el('div', { cls: 'search-box' },
+        el('svg', { cls: 'search-icon', width: '13', height: '13', viewBox: '0 0 16 16', fill: 'currentColor' },
+          el('path', { d: 'M10.68 11.74a6 6 0 0 1-7.922-8.982 6 6 0 0 1 8.982 7.922l3.04 3.04a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215ZM11.5 7a4.499 4.499 0 1 0-8.997 0A4.499 4.499 0 0 0 11.5 7Z' })
+        ),
+        el('input', { placeholder: 'Search...', value: S.search, on: { input: e => { S.search = e.target.value; render(); }}})
+      )
+    ),
+    el('div', { cls: 'pr-list' },
+      items.length === 0 ? el('div', { cls: 'empty' }, 'No PRs found') : items.map(pr => 
+        el('div', { cls: 'pr-row' + (S.selected?.number === pr.number ? ' active' : ''), on: { click: e => { if (e.target.tagName !== 'INPUT') { S.selected = pr; S.prTab = 'overview'; S.prLoading = true; render(); loadPRDetail(pr); }}}},
+          el('input', { type: 'checkbox', cls: 'pr-row-checkbox', checked: isReviewing(pr.number), on: { click: e => { e.stopPropagation(); toggleReview(pr.number); }}}),
+          el('div', { cls: 'pr-row-content' },
+            el('div', { cls: 'pr-row-title' }, pr.title),
+            el('div', { cls: 'pr-row-meta' },
+              el('span', { cls: 'badge ' + pr.state }, pr.state),
+              el('span', { cls: 'pr-row-num' }, '#' + pr.number),
+              el('span', { cls: 'pr-row-time' }, new Date(pr.updated_at).toLocaleDateString())
+            )
+          )
+        )
+      )
+    )
+  );
+}
+
+async function loadPRDetail(pr) {
+  try {
+    const base = `/repos/${S.owner}/${S.repo}`;
+    const [comments, reviews, files] = await Promise.all([
+      ghApi(base + `/issues/${pr.number}/comments?per_page=100`),
+      ghApi(base + `/pulls/${pr.number}/reviews?per_page=100`),
+      ghApi(base + `/pulls/${pr.number}/files?per_page=100`),
+    ]);
+    S.prData = { comments, reviews, files };
+  } catch (e) {
+    S.error = e.message;
+  }
+  S.prLoading = false;
+  render();
+}
+
+function renderPRDetail() {
+  if (!S.selected) return el('div', { cls: 'welcome' }, el('div', { cls: 'welcome-icon' }, '⑂'), el('h3', {}, 'Select a PR'));
+  
+  const pr = S.selected;
+  const d = S.prData;
+  
+  return el('div', { cls: 'pr-detail' },
+    el('div', { cls: 'pr-hdr' },
+      el('div', { cls: 'pr-hdr-top' },
+        el('span', { cls: 'badge ' + pr.state }, pr.state),
+        el('div', { cls: 'pr-hdr-title' }, '#' + pr.number + ' ' + pr.title)
+      ),
+      el('div', { cls: 'pr-meta-row' },
+        el('span', { cls: 'pr-meta-item' }, pr.user?.login),
+        el('span', { cls: 'pr-meta-item' }, new Date(pr.created_at).toLocaleDateString()),
+        pr.head?.ref && el('span', { cls: 'pr-meta-item' }, el('span', { cls: 'branch-pill' }, pr.head.ref), ' → ', el('span', { cls: 'branch-pill' }, pr.base?.ref))
+      ),
+      d && el('div', { cls: 'pr-stats' },
+        el('span', { cls: 'stat-chip' }, d.files.length + ' files'),
+        el('span', { cls: 'stat-chip' }, d.reviews?.length + ' reviews')
+      )
+    ),
+    el('div', { cls: 'tabs-bar' },
+      el('button', { cls: 'tab' + (S.prTab === 'overview' ? ' active' : ''), on: { click: () => { S.prTab = 'overview'; render(); }}}, '💬 Overview'),
+      el('button', { cls: 'tab' + (S.prTab === 'files' ? ' active' : ''), on: { click: () => { S.prTab = 'files'; render(); }}}, '📄 Files'),
+      el('button', { cls: 'tab' + (S.prTab === 'run' ? ' active' : ''), on: { click: () => { S.prTab = 'run'; render(); }}}, '▶ Run')
+    ),
+    el('div', { cls: 'tab-pane' },
+      S.prLoading ? el('div', { cls: 'spinner' }) :
+      S.prTab === 'overview' ? renderOverview(pr, d) :
+      S.prTab === 'files' ? renderFiles(d) :
+      renderRun(pr)
+    )
+  );
+}
+
+function renderOverview(pr, d) {
+  if (!d) return el('div', {});
+  return el('div', {},
+    pr.body && el('div', { cls: 'review-box', html: escapeHtml(pr.body) }),
+    el('div', {}, el('div', { cls: 'section-hd' }, 'Comments')),
+    d.comments?.length === 0 ? el('div', { cls: 'empty' }, 'No comments') : d.comments?.map(c =>
+      el('div', { cls: 'comment-card' },
+        el('div', { cls: 'comment-head' },
+          el('span', { cls: 'user' }, c.user?.login),
+          el('span', { cls: 'time' }, new Date(c.created_at).toLocaleString())
+        ),
+        el('div', { cls: 'comment-body' }, escapeHtml(c.body))
+      )
+    )
+  );
+}
+
+function renderFiles(d) {
+  if (!d) return el('div', {});
+  const files = d.files || [];
+  return el('div', {},
+    el('div', { cls: 'review-box' },
+      el('div', { cls: 'stat-chip' }, files.length + ' files changed'),
+      ' • ',
+      el('span', { style: { color: 'var(--green)' }}, '+' + files.reduce((a,f) => a+f.additions, 0)),
+      ' • ',
+      el('span', { style: { color: 'var(--red)' }}, '−' + files.reduce((a,f) => a+f.deletions, 0))
+    ),
+    files.map(f => el('div', { cls: 'review-box', style: { marginBottom: '8px' }},
+      el('div', { style: { fontFamily: 'var(--mono)', fontSize: '12px', fontWeight: '500', marginBottom: '6px' }}, f.filename),
+      el('div', { style: { fontSize: '11px', color: 'var(--text2)' }},
+        el('span', { style: { color: 'var(--green)', marginRight: '8px' }}, '+' + f.additions),
+        el('span', { style: { color: 'var(--red)' }}, '−' + f.deletions)
+      )
+    ))
+  );
+}
+
+function renderRun(pr) {
+  const branch = pr.head?.ref || 'main';
+  const launchers = [
+    { name: 'StackBlitz', icon: '⚡', url: `https://stackblitz.com/github/${S.owner}/${S.repo}/tree/${branch}` },
+    { name: 'CodeSandbox', icon: '📦', url: `https://codesandbox.io/p/github/${S.owner}/${S.repo}/${branch}` },
+    { name: 'Gitpod', icon: '🍊', url: `https://gitpod.io/#https://github.com/${S.owner}/${S.repo}/tree/${branch}` },
+    { name: 'GitHub Web', icon: '🐙', url: `https://github.dev/${S.owner}/${S.repo}/tree/${branch}` },
+  ];
+  
+  return el('div', {},
+    el('div', { cls: 'section-hd', style: { marginTop: '0' }}, 'Run this PR'),
+    el('div', { cls: 'launchers' },
+      ...launchers.map(l =>
+        el('a', { href: l.url, target: '_blank', style: { textDecoration: 'none' }},
+          el('div', { cls: 'launcher' },
+            el('div', { cls: 'launcher-icon' }, l.icon),
+            el('div', { cls: 'launcher-name' }, l.name),
+            el('div', { cls: 'launcher-desc' }, '↗ Open')
+          )
+        )
+      )
+    ),
+    el('div', { cls: 'review-box', style: { marginTop: '16px' }},
+      el('div', { cls: 'review-checkbox' },
+        el('input', { type: 'checkbox', checked: isReviewing(pr.number), on: { change: () => toggleReview(pr.number) }}),
+        el('label', {}, 'Mark as reviewing')
+      ),
+      S.reviewing.length >= 10 && el('div', { cls: 'review-count warning' }, '⚠ Max 10 reviews reached')
+    )
+  );
+}
+
+function escapeHtml(text) {
+  if (!text) return '';
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function render() {
+  const root = document.getElementById('app');
+  root.innerHTML = '';
+
+  if (S.page === 'home') {
+    root.appendChild(renderHome());
+    return;
+  }
+
+  root.appendChild(el('div', { style: { display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }},
+    el('div', { cls: 'topbar' },
+      el('a', { href: '#', style: { textDecoration: 'none' }, on: { click: e => { e.preventDefault(); S.page = 'home'; render(); }}},
+        el('div', { cls: 'topbar-brand' },
+          el('svg', { width: '18', height: '18', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2.5', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' },
+            el('circle', { cx: '18', cy: '18', r: '3' }),
+            el('circle', { cx: '6', cy: '6', r: '3' }),
+            el('path', { d: 'M6 21V9a9 9 0 0 0 9 9' })
+          ),
+          'PR Reviewer'
+        )
+      ),
+      S.owner && el('div', { cls: 'topbar-divider' }),
+      S.owner && el('span', { cls: 'topbar-repo' }, S.owner + ' / ' + S.repo),
+      el('div', { cls: 'topbar-right' },
+        el('button', { cls: 'btn', title: 'Cache stats: hits vs API calls', style: { fontSize: '11px' }, on: { click: () => alert('Cache hits: ' + S.cacheStats.hits + '\nAPI calls made: ' + S.cacheStats.misses + '\n\nTip: Revisit repos to maximize cache hits!') }}, 
+          '📊 ' + S.cacheStats.hits + ' cached'
+        ),
+        S.owner && el('a', { href: `https://github.com/${S.owner}/${S.repo}`, target: '_blank', style: { marginLeft: 'auto' }}, el('button', { cls: 'btn' }, '↗ GitHub'))
+      )
+    ),
+    el('div', { cls: 'workspace' },
+      renderSidebar(),
+      renderPRDetail()
+    )
+  ));
+}
+
+render();
+</script>
+</body>
+</html>
